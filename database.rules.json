@@ -1,0 +1,27 @@
+{
+  "rules": {
+    "users": {
+      ".indexOn": ["username"],
+      ".read": true,
+      "$uid": {
+        ".read": true,
+        ".write": "auth != null && (auth.uid === $uid || root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin' || !data.exists())"
+      }
+    },
+    "siteData": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    },
+    "orders": {
+      ".read": true,
+      "$orderId": {
+        ".read": true,
+        ".write": "auth != null || !data.exists() || root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    },
+    "promoCodes": {
+      ".read": true,
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'owner' || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+    }
+  }
+}

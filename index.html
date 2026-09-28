@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CrystalMC | Premium Minecraft Server</title>
+    <meta name="description" content="Experience premium custom survival, lifesteal SMP, and epic PvP battles on CrystalMC. Join our thriving community at play.crystalmc.fun!" />
+    <meta name="theme-color" content="#a855f7" />
+    <link rel="icon" type="image/png" href="https://i.ibb.co/FLT58CqD/CM.png" />
+    <link rel="apple-touch-icon" href="https://i.ibb.co/FLT58CqD/CM.png" />
+
+    <!-- OpenGraph / Discord Embed Meta Tags (Small & Compact) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CrystalMC" />
+    <meta property="og:title" content="CrystalMC | Premium Minecraft Server" />
+    <meta property="og:description" content="Experience premium custom survival, lifesteal SMP, and epic PvP battles on CrystalMC. Join at play.crystalmc.fun!" />
+    <meta property="og:image" content="https://i.ibb.co/VczbqSyw/New-Project-5-894-D560.gif" />
+    <meta property="og:image:type" content="image/gif" />
+    <meta property="og:image:alt" content="CrystalMC Animation" />
+
+    <!-- Twitter / Discord Compact Card Format -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="CrystalMC | Premium Minecraft Server" />
+    <meta name="twitter:description" content="Experience premium custom survival, lifesteal SMP, and epic PvP battles on CrystalMC. Join at play.crystalmc.fun!" />
+    <meta name="twitter:image" content="https://i.ibb.co/VczbqSyw/New-Project-5-894-D560.gif" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&family=Cinzel:wght@700;900&family=Unbounded:wght@700;800;900&family=Press+Start+2P&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/minecraft-title">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/minercraftory">
+    <link rel="stylesheet" href="https://fonts.cdnfonts.com/css/minecraft-4">
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          await OneSignal.init({
+            appId: "8ac798e3-0f3b-4d95-8c51-f5c845d1dffa",
+            safari_web_id: "web.onesignal.auto.5e769637-3ad0-4829-bde6-e4b31d264ae2",
+            notifyButton: {
+              enable: false,
+            },
+            welcomeNotification: {
+              disable: false,
+            },
+          });
+        } catch (err) {
+          console.warn("OneSignal initialization issue:", err);
+        }
+      });
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-50 antialiased selection:bg-indigo-500/30">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
