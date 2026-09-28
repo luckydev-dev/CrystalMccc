@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Compass } from 'lucide-react';
+import { Compass, Volume2, VolumeX } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { onboardingAudio } from '../../utils/onboardingAudio';
 
 interface ShowcaseItem {
   id: string;
@@ -70,6 +71,7 @@ export function EnchantedRealmIntro() {
   const [showcaseIndex, setShowcaseIndex] = useState(0);
   const [activeTourSection, setActiveTourSection] = useState<string>('');
   const [fontIndex, setFontIndex] = useState(0);
+  const [isMuted, setIsMuted] = useState(false);
   const location = useLocation();
   const { user, userData } = useAuth();
 
@@ -119,16 +121,25 @@ export function EnchantedRealmIntro() {
     setFontIndex(0);
     setPhase('welcome');
 
+    // Smooth relaxing chime for welcome arrival
+    onboardingAudio.playWelcomeTone();
+
     // Run calm, slow font tumbler between the 3 Minecraft fonts:
     // 0ms -> Font 0 (Minecraft Title)
     // 950ms -> Font 1 (Minercraftory)
     // 1900ms -> Font 2 (Minecraft - final font from minecraft-4)
     // Holds final font until 4200ms, then proceeds smoothly to showcase
     const tFont1 = window.setTimeout(() => {
-      if (isTourActiveRef.current) setFontIndex(1);
+      if (isTourActiveRef.current) {
+        setFontIndex(1);
+        onboardingAudio.playFontTumbler(1);
+      }
     }, 950);
     const tFont2 = window.setTimeout(() => {
-      if (isTourActiveRef.current) setFontIndex(2);
+      if (isTourActiveRef.current) {
+        setFontIndex(2);
+        onboardingAudio.playFontTumbler(2);
+      }
     }, 1900);
 
     scrollTimeoutsRef.current.push(tFont1, tFont2);
@@ -137,6 +148,7 @@ export function EnchantedRealmIntro() {
     const tWelcomeEnd = window.setTimeout(() => {
       if (!isTourActiveRef.current) return;
       setPhase('showcase');
+      onboardingAudio.playCardSlide(0);
       startShowcaseCycle();
     }, 4200);
     scrollTimeoutsRef.current.push(tWelcomeEnd);
@@ -152,6 +164,7 @@ export function EnchantedRealmIntro() {
       const t = window.setTimeout(() => {
         if (!isTourActiveRef.current) return;
         setShowcaseIndex(index);
+        onboardingAudio.playCardSlide(index);
       }, index * itemDuration);
       scrollTimeoutsRef.current.push(t);
     });
@@ -168,6 +181,7 @@ export function EnchantedRealmIntro() {
   // Stage 3: Smooth curtain slide up
   const initiateCurtainRollUp = () => {
     setPhase('curtain_up');
+    onboardingAudio.playCurtainRoll();
 
     const tCurtain = window.setTimeout(() => {
       if (!isTourActiveRef.current) return;
@@ -198,6 +212,7 @@ export function EnchantedRealmIntro() {
       const t = window.setTimeout(() => {
         if (!isTourActiveRef.current) return;
         setActiveTourSection(sec.label);
+        onboardingAudio.playSectionTick();
 
         const el = document.getElementById(sec.id);
         if (el) {
@@ -308,12 +323,32 @@ export function EnchantedRealmIntro() {
                   </span>
                 </div>
 
-                <button
-                  onClick={finishTour}
-                  className="px-3.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium uppercase tracking-wider transition-colors"
-                >
-                  Skip
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const next = !isMuted;
+                      setIsMuted(next);
+                      if (next) {
+                        onboardingAudio.playClickPop();
+                      }
+                    }}
+                    title={isMuted ? "Unmute audio" : "Mute audio"}
+                    aria-label="Toggle tour audio"
+                    className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-purple-400" />}
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onboardingAudio.playClickPop();
+                      finishTour();
+                    }}
+                    className="px-3.5 py-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white text-xs font-medium uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Skip
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="w-full h-16" />
@@ -467,8 +502,11 @@ export function EnchantedRealmIntro() {
               {activeTourSection}
             </span>
             <button
-              onClick={finishTour}
-              className="ml-2 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors"
+              onClick={() => {
+                onboardingAudio.playClickPop();
+                finishTour();
+              }}
+              className="ml-2 px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-medium transition-colors cursor-pointer"
             >
               Skip
             </button>

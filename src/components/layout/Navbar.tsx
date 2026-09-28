@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence, useAnimate, type Variants } from 'motion/react';
-import { Menu, X, Copy, Check, ChevronRight, LogOut, Swords } from 'lucide-react';
+import { Menu, X, Copy, Check, ChevronRight, LogOut, Swords, Bell } from 'lucide-react';
 import { HouseIcon, ShoppingCartIcon, ShieldCheckIcon, BookOpenTextIcon, InfoIcon, UsersIcon, HeartIcon, LoginIcon } from '@animateicons/react/lucide';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '../../lib/utils';
@@ -257,7 +257,24 @@ export function Navbar() {
             </nav>
 
             {/* Header Actions & Toggle */}
-            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 md:gap-2.5 shrink-0">
+              {/* Notification Prompt Trigger Button */}
+              <button
+                onClick={() => {
+                  try {
+                    sessionStorage.removeItem('crystal_notifications_dismissed_session');
+                  } catch {}
+                  window.dispatchEvent(new CustomEvent('crystalmc:open-notifications-prompt'));
+                }}
+                className="relative p-2 text-slate-300 hover:text-purple-400 transition-colors group shrink-0 cursor-pointer"
+                title="Push Notifications"
+                aria-label="Enable Push Notifications"
+              >
+                <div className="w-6 h-6 flex items-center justify-center transform group-hover:scale-110 transition-transform">
+                  <Bell className="w-5 h-5 text-slate-300 group-hover:text-purple-400 transition-colors" />
+                </div>
+              </button>
+
               <button
                 onClick={toggleCart}
                 className="header-pop-cart relative p-2 text-slate-300 hover:text-white transition-colors group shrink-0"

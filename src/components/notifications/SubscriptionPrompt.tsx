@@ -81,39 +81,26 @@ async function dispatchWelcomeNotification() {
 
 export function SubscriptionPrompt() {
   const [isVisible, setIsVisible] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    if (localStorage.getItem('crystal_notifications_subscribed') === 'true') return true;
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return true;
-    return false;
-  });
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // 1. If already subscribed or granted, don't show prompt
-    if (localStorage.getItem('crystal_notifications_subscribed') === 'true') {
-      setIsSubscribed(true);
-      return;
-    }
+    // Check if user has already granted notification permission
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       setIsSubscribed(true);
-      localStorage.setItem('crystal_notifications_subscribed', 'true');
       return;
     }
 
-    // 2. If user already dismissed in this session, keep hidden
-    if (sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true') {
-      return;
-    }
+    // Check if dismissed in this immediate session (unless manually reopened)
+    const isDismissed = sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true';
 
-    // 3. Setup OneSignal listener
+    // OneSignal subscription change listener
     const setupListener = () => {
       const OneSignal = (window as any).OneSignal;
       if (OneSignal?.User?.PushSubscription) {
         if (OneSignal.User.PushSubscription.optedIn) {
           setIsSubscribed(true);
-          localStorage.setItem('crystal_notifications_subscribed', 'true');
           return;
         }
 
@@ -124,7 +111,6 @@ export function SubscriptionPrompt() {
               if (e.current?.optedIn) {
                 setIsSubscribed(true);
                 setIsVisible(false);
-                localStorage.setItem('crystal_notifications_subscribed', 'true');
                 dispatchWelcomeNotification();
               }
             });
@@ -142,18 +128,25 @@ export function SubscriptionPrompt() {
       (window as any).OneSignalDeferred.push(setupListener);
     }
 
-    // 4. Reveal prompt smoothly after 2 seconds
-    const timer = setTimeout(() => {
-      const isSub = localStorage.getItem('crystal_notifications_subscribed') === 'true' ||
-                    (typeof Notification !== 'undefined' && Notification.permission === 'granted');
-      const isDismissed = sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true';
+    // Allow manual open via custom event
+    const handleManualOpen = () => {
+      setIsSubscribed(false);
+      setIsVisible(true);
+    };
+    window.addEventListener('crystalmc:open-notifications-prompt', handleManualOpen);
 
-      if (!isSub && !isDismissed) {
+    // Show prompt after 1.5 seconds if user has not yet granted permission and hasn't closed it
+    const timer = setTimeout(() => {
+      const granted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+      if (!granted && !isDismissed) {
         setIsVisible(true);
       }
-    }, 2000);
+    }, 1500);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('crystalmc:open-notifications-prompt', handleManualOpen);
+    };
   }, []);
 
   const handleSubscribe = async () => {

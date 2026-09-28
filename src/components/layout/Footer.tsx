@@ -67,6 +67,13 @@ export function Footer() {
           <Link to="/staff" className="hover:text-white transition-colors">Staff</Link>
           <span className="text-slate-800">•</span>
           <Link to="/track" className="hover:text-white transition-colors">Track Order</Link>
+          <span className="text-slate-800">•</span>
+          <button 
+            onClick={() => window.dispatchEvent(new CustomEvent('crystalmc:open-intro'))}
+            className="hover:text-purple-400 text-slate-400 transition-colors flex items-center gap-1 cursor-pointer"
+          >
+            <span>Replay Intro Tour</span>
+          </button>
         </div>
 
         <div className="pt-6 border-t border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
