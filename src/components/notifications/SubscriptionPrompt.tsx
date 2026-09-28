@@ -1,158 +1,222 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BellIcon, CheckIcon, XIcon } from '@animateicons/react/lucide';
+import { Loader2 } from 'lucide-react';
 import { useToast } from '../../context/ToastContext';
+
+// Helper to trigger guaranteed immediate welcome notification on both Desktop & Mobile (Android)
+async function dispatchWelcomeNotification() {
+  const title = "CrystalMC Network ✦";
+  const options: NotificationOptions = {
+    body: "🎉 Subscription confirmed! You'll receive real-time server updates, rank deliveries, and drop alerts.",
+    icon: "https://i.ibb.co/FLT58CqD/CM.png",
+    badge: "https://i.ibb.co/FLT58CqD/CM.png",
+    tag: "crystalmc-welcome-alert",
+    data: { url: window.location.origin }
+  };
+
+  // 1. Android & Modern Browsers: Service Worker is required for mobile push
+  if ('serviceWorker' in navigator) {
+    try {
+      let reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) {
+        reg = (await Promise.race([
+          navigator.serviceWorker.ready,
+          new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 2000))
+        ])) as ServiceWorkerRegistration | undefined;
+      }
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(title, options);
+        return;
+      }
+    } catch (swErr) {
+      console.warn('[Notifications] ServiceWorker showNotification failed:', swErr);
+    }
+  }
+
+  // 2. Desktop Fallback: Notification API
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, {
+        body: options.body,
+        icon: options.icon
+      });
+    }
+  } catch (notifErr) {
+    console.warn('[Notifications] Window Notification constructor failed:', notifErr);
+  }
+}
 
 export function SubscriptionPrompt() {
   const [isVisible, setIsVisible] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (localStorage.getItem('crystal_notifications_subscribed') === 'true') return true;
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') return true;
+    return false;
+  });
+  const [isProcessing, setIsProcessing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // 1. Check native browser notification permission directly
-    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    // 1. If already subscribed or granted, don't show prompt
+    if (localStorage.getItem('crystal_notifications_subscribed') === 'true') {
       setIsSubscribed(true);
       return;
     }
-
-    // 2. Check if user already dismissed in the current session
-    const isDismissedSession = sessionStorage.getItem('crystal_notifications_dismissed_session');
-    if (isDismissedSession === 'true') {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      setIsSubscribed(true);
+      localStorage.setItem('crystal_notifications_subscribed', 'true');
       return;
     }
 
-    // 3. Query actual OneSignal state if available
-    const checkOneSignalState = () => {
-      const OneSignal = (window as any).OneSignal;
-      if (OneSignal && OneSignal.User && OneSignal.User.PushSubscription) {
-        const optedIn = OneSignal.User.PushSubscription.optedIn;
-        if (optedIn) {
-          setIsSubscribed(true);
-          return true;
-        }
-      }
-      return false;
-    };
-
-    // 4. Setup listener for OneSignal initialization and subscription changes
-    const setupOneSignalListeners = () => {
-      const OneSignal = (window as any).OneSignal;
-      if (OneSignal) {
-        // Init state check
-        checkOneSignalState();
-
-        // Listen for changes
-        try {
-          if (OneSignal.User && OneSignal.User.PushSubscription) {
-            if (!(window as any).__oneSignalChangeListenerAttached) {
-              (window as any).__oneSignalChangeListenerAttached = true;
-              OneSignal.User.PushSubscription.addEventListener('change', (e: any) => {
-                if (e.current?.optedIn) {
-                  setIsSubscribed(true);
-                  setIsVisible(false);
-                  toast('Successfully subscribed to notifications!', 'success');
-                }
-              });
-            }
-          }
-        } catch (err) {
-          console.error('Failed to attach OneSignal change listener:', err);
-        }
-      }
-    };
-
-    // Listen to OneSignalDeferred or OneSignal
-    if ((window as any).OneSignal) {
-      setupOneSignalListeners();
-    } else {
-      (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
-      (window as any).OneSignalDeferred.push(() => {
-        setupOneSignalListeners();
-      });
+    // 2. If user already dismissed in this session, keep hidden
+    if (sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true') {
+      return;
     }
 
-    // Set a slight delay before showing the prompt toast so it is highly polished and non-intrusive
-    const timer = setTimeout(() => {
-      const OneSignalValue = (window as any).OneSignal;
-      let alreadySubscribed = false;
-      if (OneSignalValue && OneSignalValue.User && OneSignalValue.User.PushSubscription) {
-        alreadySubscribed = OneSignalValue.User.PushSubscription.optedIn;
-      }
-      
-      const isDismissed = sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true';
-      const nativeGranted = typeof Notification !== 'undefined' && Notification.permission === 'granted';
-
-      if (!nativeGranted && !alreadySubscribed && !isDismissed) {
-        setIsVisible(true);
-      }
-    }, 2500); // Shorter delay for responsive feedback during testing
-
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const handleSubscribe = async () => {
-    try {
-      let permissionResult = 'default';
-
-      // First, directly invoke browser Notification API if available
-      if (typeof Notification !== 'undefined') {
-        if (Notification.permission === 'granted') {
-          permissionResult = 'granted';
-        } else {
-          try {
-            permissionResult = await Notification.requestPermission();
-          } catch (e) {
-            console.warn('Native requestPermission error, falling back to OneSignal:', e);
-          }
+    // 3. Setup OneSignal listener
+    const setupListener = () => {
+      const OneSignal = (window as any).OneSignal;
+      if (OneSignal?.User?.PushSubscription) {
+        if (OneSignal.User.PushSubscription.optedIn) {
+          setIsSubscribed(true);
+          localStorage.setItem('crystal_notifications_subscribed', 'true');
+          return;
         }
-      }
 
-      const triggerPushPrompt = async (os: any) => {
         try {
-          if (os.Notifications && typeof os.Notifications.requestPermission === 'function') {
-            await os.Notifications.requestPermission();
-          } else if (os.Slidedown && typeof os.Slidedown.promptPush === 'function') {
-            await os.Slidedown.promptPush();
-          } else if (typeof os.registerForPushNotifications === 'function') {
-            await os.registerForPushNotifications();
-          }
-
-          if (os.User?.PushSubscription && typeof os.User.PushSubscription.optIn === 'function') {
-            await os.User.PushSubscription.optIn();
+          if (!(window as any).__oneSignalChangeListenerAttached) {
+            (window as any).__oneSignalChangeListenerAttached = true;
+            OneSignal.User.PushSubscription.addEventListener('change', (e: any) => {
+              if (e.current?.optedIn) {
+                setIsSubscribed(true);
+                setIsVisible(false);
+                localStorage.setItem('crystal_notifications_subscribed', 'true');
+                dispatchWelcomeNotification();
+              }
+            });
           }
         } catch (err) {
-          console.error('Error triggering OneSignal prompt:', err);
+          console.warn('[Notifications] OneSignal listener attach warning:', err);
         }
-      };
+      }
+    };
 
-      const OneSignal = (window as any).OneSignal;
-      if (OneSignal) {
-        await triggerPushPrompt(OneSignal);
+    if ((window as any).OneSignal) {
+      setupListener();
+    } else {
+      (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
+      (window as any).OneSignalDeferred.push(setupListener);
+    }
+
+    // 4. Reveal prompt smoothly after 2 seconds
+    const timer = setTimeout(() => {
+      const isSub = localStorage.getItem('crystal_notifications_subscribed') === 'true' ||
+                    (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+      const isDismissed = sessionStorage.getItem('crystal_notifications_dismissed_session') === 'true';
+
+      if (!isSub && !isDismissed) {
+        setIsVisible(true);
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleSubscribe = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+
+    try {
+      let permissionGranted = false;
+
+      // Check current browser permission
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        permissionGranted = true;
       } else {
-        (window as any).OneSignalDeferred = (window as any).OneSignalDeferred || [];
-        (window as any).OneSignalDeferred.push(async function(os: any) {
-          await triggerPushPrompt(os);
-        });
+        // Request browser permission directly and smoothly
+        if (typeof Notification !== 'undefined' && typeof Notification.requestPermission === 'function') {
+          try {
+            const res = await new Promise<NotificationPermission>((resolve) => {
+              try {
+                const p = Notification.requestPermission((result) => {
+                  if (result) resolve(result);
+                });
+                if (p && typeof p.then === 'function') {
+                  p.then(resolve).catch(() => resolve('default'));
+                }
+              } catch {
+                resolve('default');
+              }
+            });
+
+            if (res === 'granted' || Notification.permission === 'granted') {
+              permissionGranted = true;
+            }
+          } catch (permErr) {
+            console.warn('[Notifications] requestPermission error:', permErr);
+          }
+        }
+
+        // Also notify OneSignal SDK of the subscription request with a safe timeout
+        const OneSignal = (window as any).OneSignal;
+        if (OneSignal?.Notifications && typeof OneSignal.Notifications.requestPermission === 'function') {
+          try {
+            await Promise.race([
+              OneSignal.Notifications.requestPermission(),
+              new Promise((r) => setTimeout(r, 2000))
+            ]);
+            if (Notification.permission === 'granted') {
+              permissionGranted = true;
+            }
+          } catch (osErr) {
+            console.warn('[Notifications] OneSignal requestPermission:', osErr);
+          }
+        }
       }
 
-      if (permissionResult === 'granted' || (typeof Notification !== 'undefined' && Notification.permission === 'granted')) {
+      // If user accepted / granted permission:
+      if (permissionGranted || (typeof Notification !== 'undefined' && Notification.permission === 'granted')) {
+        // Immediately dismiss modal
+        setIsVisible(false);
         setIsSubscribed(true);
+
+        // Store permanent subscription flag
+        localStorage.setItem('crystal_notifications_subscribed', 'true');
+        sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
+
+        // Background: opt into OneSignal push worker
+        const OneSignal = (window as any).OneSignal;
+        if (OneSignal?.User?.PushSubscription && typeof OneSignal.User.PushSubscription.optIn === 'function') {
+          OneSignal.User.PushSubscription.optIn().catch((err: any) => console.warn('[Notifications] OneSignal optIn error:', err));
+        }
+
+        toast('🎉 Notifications turned on successfully!', 'success');
+
+        // Immediately trigger guaranteed local welcome push notification
+        await dispatchWelcomeNotification();
+      } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+        // User explicitly blocked notifications
         setIsVisible(false);
-        toast('Notifications turned on successfully!', 'success');
+        sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
+        toast('Notifications are blocked in your browser settings.', 'info');
       } else {
+        // User closed or dismissed browser prompt
         setIsVisible(false);
-        toast('Notification prompt opened. Please allow notifications in your browser.', 'info');
+        sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
       }
     } catch (error) {
-      console.error('OneSignal Subscription Request Failed:', error);
-      toast('Failed to launch notification system. Please check browser notification permissions.', 'error');
+      console.error('[Notifications] Subscribe error:', error);
       setIsVisible(false);
+      sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Dismiss for the current session to ensure testing is easy and painless upon refresh/reentry
     sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
   };
 
@@ -187,6 +251,7 @@ export function SubscriptionPrompt() {
                   <h3 className="font-heading font-bold text-white text-base leading-none">Enable Push Alerts</h3>
                   <button 
                     onClick={handleDismiss}
+                    aria-label="Close notification prompt"
                     className="text-slate-500 hover:text-white transition-colors p-1 hover:bg-slate-800/50 rounded-lg cursor-pointer"
                   >
                     <XIcon className="w-4 h-4" />
@@ -201,13 +266,24 @@ export function SubscriptionPrompt() {
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={handleSubscribe}
-                    className="flex-grow flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-all shadow-md shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                    disabled={isProcessing}
+                    className="flex-grow flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 disabled:opacity-75 disabled:cursor-not-allowed rounded-xl transition-all shadow-md shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
-                    <CheckIcon className="w-3.5 h-3.5" />
-                    <span>Subscribe Now</span>
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Enabling...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckIcon className="w-3.5 h-3.5" />
+                        <span>Subscribe Now</span>
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={handleDismiss}
+                    disabled={isProcessing}
                     className="px-3 py-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-800/60 hover:bg-slate-800 border border-transparent hover:border-slate-700 rounded-xl transition-all cursor-pointer"
                   >
                     Later

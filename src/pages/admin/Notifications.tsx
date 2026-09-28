@@ -11,7 +11,7 @@ export function Notifications() {
   const [message, setMessage] = useState('');
   const [url, setUrl] = useState('');
   const [restApiKey, setRestApiKey] = useState('');
-  const [appId, setAppId] = useState('feba20a1-9619-4a2b-b3c5-a8692fe8b20d');
+  const [appId, setAppId] = useState('8ac798e3-0f3b-4d95-8c51-f5c845d1dffa');
   const [isSending, setIsSending] = useState(false);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const { toast } = useToast();

@@ -13,7 +13,7 @@ interface SEOHeadProps {
 export function SEOHead({
   title,
   description = "Join CrystalMC for the ultimate Minecraft experience featuring custom Survival SMP, intense Lifesteal, and competitive PvP duels. Connect now at play.crystalmc.fun!",
-  image = "https://i.ibb.co/VczbqSyw/New-Project-5-894-D560.gif",
+  image = "https://store.crystalmc.fun/crystal-embed.gif",
   url,
   type = "website",
   schema,
