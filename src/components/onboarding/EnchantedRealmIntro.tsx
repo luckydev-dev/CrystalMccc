@@ -376,32 +376,20 @@ export function EnchantedRealmIntro() {
                       Welcome <span className="font-medium text-white">{username}</span>, To
                     </span>
 
-                    {/* Smooth, slow vertical tumbler roller for Crystal MC with ZERO bottom clipping */}
-                    <span className="inline-flex items-center justify-center relative min-h-[60px] sm:min-h-[80px] overflow-visible align-middle px-2 py-2">
-                      <AnimatePresence mode="wait" initial={false}>
-                        <motion.span
-                          key={fontIndex}
-                          initial={{ y: 14, opacity: 0 }}
-                          animate={{ y: 0, opacity: 1 }}
-                          exit={{ y: -14, opacity: 0 }}
-                          transition={{ 
-                            duration: 0.5, 
-                            ease: [0.16, 1, 0.3, 1] 
-                          }}
-                          style={{ 
-                            fontFamily: activeFont.font,
-                            lineHeight: 1.45,
-                            paddingBottom: '0.3em'
-                          }}
-                          className={`inline-block text-2xl sm:text-4xl md:text-5xl lg:text-6xl tracking-wider select-none ${
-                            isFinalFont
-                              ? 'text-purple-400 drop-shadow-[0_0_24px_rgba(168,85,247,0.7)]'
-                              : 'text-slate-100'
-                          }`}
-                        >
-                          CRYSTAL MC
-                        </motion.span>
-                      </AnimatePresence>
+                    {/* Clean in-place font switch for CRYSTAL MC without any spin or displacement */}
+                    <span 
+                      style={{ 
+                        fontFamily: activeFont.font,
+                        lineHeight: 1.45,
+                        paddingBottom: '0.25em'
+                      }}
+                      className={`inline-block text-2xl sm:text-4xl md:text-5xl lg:text-6xl tracking-wider select-none px-2 py-1 transition-colors duration-300 ${
+                        isFinalFont
+                          ? 'text-purple-400 drop-shadow-[0_0_24px_rgba(168,85,247,0.7)]'
+                          : 'text-slate-100'
+                      }`}
+                    >
+                      CRYSTAL MC
                     </span>
                   </div>
                 </motion.div>

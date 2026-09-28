@@ -41,6 +41,7 @@ import { CartSidebar } from './components/shop/CartSidebar';
 import { AuthModal } from './components/auth/AuthModal';
 import { SubscriptionPrompt } from './components/notifications/SubscriptionPrompt';
 import { EnchantedRealmIntro } from './components/onboarding/EnchantedRealmIntro';
+import { BackgroundMusic } from './components/common/BackgroundMusic';
 import { useData } from './context/DataContext';
 import { useAuth } from './context/AuthContext';
 import { motion } from 'motion/react';
@@ -144,6 +145,7 @@ export default function App() {
                 <CartSidebar />
                 <AuthModal />
                 <SubscriptionPrompt />
+                <BackgroundMusic />
                 <Routes>
                   {/* Admin Routes */}
                   <Route path="/admin/login" element={<Login />} />

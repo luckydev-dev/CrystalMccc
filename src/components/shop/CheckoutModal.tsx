@@ -295,7 +295,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
                     text: `CrystalMC Store - ${selectedCountryObj.name}`,
                     icon_url: config.embedFooterIcon || undefined
                   },
-                  image: config.showProofImage ? { url: proofUrl } : undefined,
+                  image: config.embedImage ? { url: config.embedImage } : (config.showProofImage ? { url: proofUrl } : undefined),
                   thumbnail: config.showPlayerHead ? { url: `https://mc-heads.net/avatar/${playerName.trim()}` } : undefined,
                   timestamp: new Date().toISOString()
                 }

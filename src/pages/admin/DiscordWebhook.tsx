@@ -24,6 +24,7 @@ export interface DiscordWebhookConfig {
   embedColor: string;
   embedFooter: string;
   embedFooterIcon: string;
+  embedImage?: string;
   showProofImage: boolean;
   showPlayerHead: boolean;
   fields: DiscordEmbedField[];
@@ -39,6 +40,7 @@ const defaultConfig: DiscordWebhookConfig = {
   embedColor: '#06b6d4',
   embedFooter: 'CrystalMC Store',
   embedFooterIcon: '',
+  embedImage: 'https://store.crystalmc.fun/crystal-embed.gif',
   showProofImage: true,
   showPlayerHead: true,
   fields: [
@@ -208,7 +210,7 @@ export function DiscordWebhook() {
               text: replaceVars(config.embedFooter),
               icon_url: config.embedFooterIcon || undefined
             },
-            image: config.showProofImage ? { url: demoData.proofUrl } : undefined,
+            image: config.embedImage ? { url: config.embedImage } : (config.showProofImage ? { url: demoData.proofUrl } : undefined),
             thumbnail: config.showPlayerHead ? { url: `https://mc-heads.net/avatar/${demoData.player}` } : undefined,
             timestamp: new Date().toISOString()
           }
@@ -380,6 +382,20 @@ export function DiscordWebhook() {
                 className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Embed Image / GIF URL (Full Image, not thumbnail)</label>
+            <input
+              type="text"
+              value={config.embedImage || ''}
+              onChange={(e) => handleChange('embedImage', e.target.value)}
+              placeholder="https://store.crystalmc.fun/crystal-embed.gif"
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Displays as the large full-width banner image at the bottom of the embed rather than a small side thumbnail.
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 pt-4 border-t border-slate-800">
@@ -566,11 +582,15 @@ export function DiscordWebhook() {
                               </div>
                             )}
 
-                            {config.showProofImage && (
+                            {config.embedImage ? (
+                              <div className="mt-4 rounded-md overflow-hidden max-w-full border border-white/5">
+                                <img src={config.embedImage} alt="Embed Banner" className="w-full h-auto object-cover max-h-[320px]" />
+                              </div>
+                            ) : config.showProofImage ? (
                               <div className="mt-4 rounded-md overflow-hidden max-w-[300px] border border-white/5">
                                 <img src="https://i.ibb.co/8DhgMNkg/minecraft-live-2025-3840x2160-24154.jpg" alt="Proof" className="w-full h-auto" />
                               </div>
-                            )}
+                            ) : null}
                           </div>
 
                           {config.showPlayerHead && (

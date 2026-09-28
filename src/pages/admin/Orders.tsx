@@ -130,6 +130,7 @@ export function Orders() {
                       { name: 'New Status', value: status.toUpperCase(), inline: true },
                       { name: 'Total', value: `₹${order.total?.toFixed(2) || '0.00'}`, inline: true }
                     ],
+                    image: config.embedImage ? { url: config.embedImage } : undefined,
                     timestamp: new Date().toISOString()
                   }
                 ]

@@ -58,8 +58,8 @@ export function SEOHead({
       <meta property="og:url" content={canonicalUrl} />
       <meta name="theme-color" content="#a855f7" />
 
-      {/* Twitter Cards / Discord Compact Embed */}
-      <meta name="twitter:card" content="summary" />
+      {/* Twitter Cards / Discord Embed (Full Image Banner instead of small thumbnail) */}
+      <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
