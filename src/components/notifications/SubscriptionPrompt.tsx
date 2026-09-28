@@ -7,30 +7,62 @@ import { useToast } from '../../context/ToastContext';
 // Helper to trigger guaranteed immediate welcome notification on both Desktop & Mobile (Android)
 async function dispatchWelcomeNotification() {
   const title = "CrystalMC Network ✦";
-  const options: NotificationOptions = {
+  const options: NotificationOptions & { vibrate?: number[] } = {
     body: "🎉 Subscription confirmed! You'll receive real-time server updates, rank deliveries, and drop alerts.",
     icon: "https://i.ibb.co/FLT58CqD/CM.png",
     badge: "https://i.ibb.co/FLT58CqD/CM.png",
-    tag: "crystalmc-welcome-alert",
+    tag: `crystalmc-welcome-${Date.now()}`,
+    vibrate: [200, 100, 200],
     data: { url: window.location.origin }
   };
 
-  // 1. Android & Modern Browsers: Service Worker is required for mobile push
+  // 1. Android & Modern Browsers: Ensure service worker registration & display via showNotification
   if ('serviceWorker' in navigator) {
     try {
       let reg = await navigator.serviceWorker.getRegistration();
       if (!reg) {
-        reg = (await Promise.race([
-          navigator.serviceWorker.ready,
-          new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 2000))
-        ])) as ServiceWorkerRegistration | undefined;
+        reg = await navigator.serviceWorker.register('/OneSignalSDKWorker.js', { scope: '/' });
       }
-      if (reg && typeof reg.showNotification === 'function') {
-        await reg.showNotification(title, options);
+
+      if (reg) {
+        // Wait briefly if worker is still installing
+        if (reg.installing) {
+          await new Promise<void>((resolve) => {
+            reg?.installing?.addEventListener('statechange', function () {
+              if (this.state === 'activated' || this.state === 'installed') resolve();
+            });
+            setTimeout(resolve, 1200);
+          });
+        }
+
+        // Show directly via Service Worker
+        if (typeof reg.showNotification === 'function') {
+          await reg.showNotification(title, options);
+          return;
+        }
+
+        // Or dispatch to active worker via postMessage
+        if (reg.active) {
+          reg.active.postMessage({
+            type: 'SHOW_NOTIFICATION',
+            title,
+            options
+          });
+          return;
+        }
+      }
+
+      // Try waiting for ready registration
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<undefined>((resolve) => setTimeout(() => resolve(undefined), 1500))
+      ]);
+      if (readyReg && typeof readyReg.showNotification === 'function') {
+        await readyReg.showNotification(title, options);
         return;
       }
     } catch (swErr) {
-      console.warn('[Notifications] ServiceWorker showNotification failed:', swErr);
+      console.warn('[Notifications] ServiceWorker notification error:', swErr);
     }
   }
 
@@ -43,7 +75,7 @@ async function dispatchWelcomeNotification() {
       });
     }
   } catch (notifErr) {
-    console.warn('[Notifications] Window Notification constructor failed:', notifErr);
+    console.warn('[Notifications] Window Notification constructor fallback:', notifErr);
   }
 }
 
@@ -131,12 +163,28 @@ export function SubscriptionPrompt() {
     try {
       let permissionGranted = false;
 
-      // Check current browser permission
+      // 1. Check if permission is already granted in the browser
       if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
         permissionGranted = true;
       } else {
-        // Request browser permission directly and smoothly
-        if (typeof Notification !== 'undefined' && typeof Notification.requestPermission === 'function') {
+        // 2. Trigger OneSignal SDK requestPermission first so OneSignal captures the event
+        const OneSignal = (window as any).OneSignal;
+        if (OneSignal?.Notifications && typeof OneSignal.Notifications.requestPermission === 'function') {
+          try {
+            await Promise.race([
+              OneSignal.Notifications.requestPermission(),
+              new Promise((r) => setTimeout(r, 4000))
+            ]);
+            if (Notification.permission === 'granted') {
+              permissionGranted = true;
+            }
+          } catch (osErr) {
+            console.warn('[Notifications] OneSignal requestPermission:', osErr);
+          }
+        }
+
+        // 3. Fallback to native browser requestPermission if still not granted
+        if (!permissionGranted && typeof Notification !== 'undefined' && typeof Notification.requestPermission === 'function') {
           try {
             const res = await new Promise<NotificationPermission>((resolve) => {
               try {
@@ -158,22 +206,6 @@ export function SubscriptionPrompt() {
             console.warn('[Notifications] requestPermission error:', permErr);
           }
         }
-
-        // Also notify OneSignal SDK of the subscription request with a safe timeout
-        const OneSignal = (window as any).OneSignal;
-        if (OneSignal?.Notifications && typeof OneSignal.Notifications.requestPermission === 'function') {
-          try {
-            await Promise.race([
-              OneSignal.Notifications.requestPermission(),
-              new Promise((r) => setTimeout(r, 2000))
-            ]);
-            if (Notification.permission === 'granted') {
-              permissionGranted = true;
-            }
-          } catch (osErr) {
-            console.warn('[Notifications] OneSignal requestPermission:', osErr);
-          }
-        }
       }
 
       // If user accepted / granted permission:
@@ -186,15 +218,19 @@ export function SubscriptionPrompt() {
         localStorage.setItem('crystal_notifications_subscribed', 'true');
         sessionStorage.setItem('crystal_notifications_dismissed_session', 'true');
 
-        // Background: opt into OneSignal push worker
+        // Tell OneSignal to opt-in the subscription
         const OneSignal = (window as any).OneSignal;
         if (OneSignal?.User?.PushSubscription && typeof OneSignal.User.PushSubscription.optIn === 'function') {
-          OneSignal.User.PushSubscription.optIn().catch((err: any) => console.warn('[Notifications] OneSignal optIn error:', err));
+          try {
+            await OneSignal.User.PushSubscription.optIn();
+          } catch (err: any) {
+            console.warn('[Notifications] OneSignal optIn error:', err);
+          }
         }
 
         toast('🎉 Notifications turned on successfully!', 'success');
 
-        // Immediately trigger guaranteed local welcome push notification
+        // Immediately trigger guaranteed welcome push notification
         await dispatchWelcomeNotification();
       } else if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
         // User explicitly blocked notifications
